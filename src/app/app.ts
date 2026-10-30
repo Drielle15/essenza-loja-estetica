@@ -1,3 +1,4 @@
+
 import { Component, OnInit, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,6 +25,8 @@ export class App implements OnInit {
   erro = '';
 
   carrinho: any[] = [];
+
+  clienteId: number | null = null;
 
   mostrarCadastro = false;
   mensagemCadastro = '';
@@ -171,7 +174,17 @@ export class App implements OnInit {
     this.salvandoCadastro = true;
 
     this.api.cadastrarPessoa(dados).subscribe({
-      next: () => {
+      next: resposta => {
+        console.log('Cliente cadastrado:', resposta);
+
+        this.clienteId = Number(resposta.idpessoa);
+
+        if (!this.clienteId) {
+          this.erroCadastro = 'Não foi possível identificar o cliente cadastrado.';
+          this.salvandoCadastro = false;
+          return;
+        }
+
         this.mensagemCadastro = 'Cliente cadastrado com sucesso!';
         this.erroCadastro = '';
 
@@ -186,6 +199,11 @@ export class App implements OnInit {
         };
 
         this.salvandoCadastro = false;
+
+        if (this.carrinho.length > 0) {
+          this.mostrarCadastro = false;
+          this.confirmarCompra();
+        }
       },
       error: erro => {
         console.log(JSON.stringify(erro.error?.errors, null, 2));
@@ -202,8 +220,14 @@ export class App implements OnInit {
       return;
     }
 
+    if (!this.clienteId) {
+      this.abrirCadastro();
+      this.erro = 'Cadastre seus dados antes de finalizar a compra.';
+      return;
+    }
+
     const atendimento = {
-      idPessoa: 1,
+      idPessoa: this.clienteId,
       dataAtendimento: new Date().toISOString().split('T')[0],
       statusAtendimento: 'P',
       itens: this.carrinho.map(linha => ({
@@ -221,6 +245,8 @@ export class App implements OnInit {
         alert('Compra registrada com sucesso!');
         this.carrinho = [];
         this.erro = '';
+        this.clienteId = null;
+        this.mostrarCadastro = false;
       },
       error: erro => {
         console.error('Erro ao registrar compra:', erro);
