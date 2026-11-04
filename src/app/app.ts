@@ -52,6 +52,17 @@ export class App implements OnInit {
     ativoPessoa: 'S'
   };
 
+  // Controla os dados exibidos na área administrativa.
+  pessoas: any[] = [];
+  funcionarios: any[] = [];
+  atendimentos: any[] = [];
+  estoques: any[] = [];
+  entradas: any[] = [];
+
+  // Controla a opção selecionada na administração.
+  paginaAdmin = 'inicio';
+  erroAdmin = '';
+
   // Construtor responsável por conectar o componente ao serviço que acessa a API.
   constructor(private api: Api) {}
 
@@ -279,8 +290,9 @@ export class App implements OnInit {
     }
 
     if (!this.clienteId) {
+      this.mostrarPagina('cadastro');
       this.abrirCadastro();
-      this.erro = 'Cadastre seus dados antes de finalizar a compra.';
+      this.erroCadastro = 'Cadastre seus dados antes de finalizar a compra.';
       return;
     }
 
@@ -292,7 +304,6 @@ export class App implements OnInit {
       statusAtendimento: 'P',
       itens: this.carrinho.map(linha => ({
         idItem: linha.item.iditem,
-        idFuncionario: 2,
         quantidade: linha.quantidade,
         valorUnitario: linha.item.preco
       }))
@@ -322,5 +333,42 @@ export class App implements OnInit {
           'Não foi possível registrar a compra. Verifique os dados e o estoque.';
       }
     });
+  }
+
+  // Carrega as informações necessárias para a administração.
+  carregarAdministracao(): void {
+    this.erroAdmin = '';
+
+    this.api.listarPessoas().subscribe({
+      next: dados => this.pessoas = dados,
+      error: () => this.erroAdmin = 'Erro ao carregar clientes.'
+    });
+
+    this.api.listarFuncionarios().subscribe({
+      next: dados => this.funcionarios = dados,
+      error: () => this.erroAdmin = 'Erro ao carregar funcionários.'
+    });
+
+    this.api.listarAtendimentos().subscribe({
+      next: dados => this.atendimentos = dados,
+      error: () => this.erroAdmin = 'Erro ao carregar atendimentos.'
+    });
+
+    this.api.listarEstoque().subscribe({
+      next: dados => this.estoques = dados,
+      error: () => this.erroAdmin = 'Erro ao carregar estoque.'
+    });
+
+    this.api.listarEntradas().subscribe({
+      next: dados => this.entradas = dados,
+      error: () => this.erroAdmin = 'Erro ao carregar entradas.'
+    });
+  }
+
+  // Abre a área administrativa e carrega os dados.
+  abrirAdministracao(): void {
+    this.paginaAtual = 'admin';
+    this.paginaAdmin = 'inicio';
+    this.carregarAdministracao();
   }
 }
