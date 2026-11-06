@@ -1,4 +1,3 @@
-
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
@@ -94,7 +93,7 @@ export class Api {
     return this.http.delete<any>(`${this.url}/PessoaFuncionarioEndereco/${id}`);
   }
 
-  // ATENDIMENTOS
+  // ATENDIMENTOS / PEDIDOS
   listarAtendimentos() {
     return this.http.get<any[]>(`${this.url}/Atendimento`);
   }

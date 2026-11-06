@@ -10,6 +10,7 @@
       Carrinho ({{ quantidadeCarrinho }})
     </a>
     <a href="#cadastro" (click)="mostrarPagina('cadastro')">Cadastrar cliente</a>
+    <a href="#pedidos" (click)="abrirMeusPedidos()">Meus pedidos</a>
     <a href="#sobre" (click)="mostrarPagina('sobre')">Sobre nós</a>
     <a href="#admin" (click)="abrirAdministracao()">Administração</a>
   </nav>
@@ -37,7 +38,6 @@
 
       <select [(ngModel)]="categoriaSelecionada">
         <option value="">Todas as categorias</option>
-
         @for (categoria of categorias; track categoria.idcategoria) {
           <option [value]="categoria.idcategoria">
             {{ categoria.categoria }}
@@ -57,7 +57,7 @@
     }
 
     <div class="lista-itens">
-      @for (item of itensFiltrados; track item.iditem) {
+      @for (item of itensExibidos; track item.iditem) {
         <div class="card-item">
           <div class="icone-item"></div>
 
@@ -132,10 +132,39 @@
         <h3>Total: {{ totalCarrinho | currency:'BRL' }}</h3>
       </div>
 
-      <button
-        class="botao"
-        (click)="confirmarCompra()"
-      >
+      <!-- Identificação do cliente pelo CPF -->
+      @if (!clienteId) {
+        <div class="identificar-cliente">
+          <h3>Identificação do cliente</h3>
+          <p>Já possui cadastro? Informe seu CPF.</p>
+
+          <input
+            type="text"
+            placeholder="Digite seu CPF"
+            [(ngModel)]="cpfConsulta"
+          >
+
+          <button
+            class="botao"
+            (click)="localizarClientePorCpf()"
+            [disabled]="buscandoCliente"
+          >
+            {{ buscandoCliente ? 'Consultando...' : 'Localizar cadastro' }}
+          </button>
+        </div>
+      }
+
+      @if (clienteId) {
+        <p class="mensagem-sucesso">
+          Cliente identificado! Código: {{ clienteId }}
+        </p>
+      }
+
+      @if (mensagemCliente) {
+        <p>{{ mensagemCliente }}</p>
+      }
+
+      <button class="botao" (click)="confirmarCompra()">
         Confirmar compra
       </button>
     }
@@ -247,6 +276,121 @@
     }
   </section>
 
+  <!-- Meus pedidos -->
+  <section
+    id="pedidos"
+    class="pedidos"
+    [hidden]="paginaAtual !== 'pedidos'"
+  >
+    <div class="titulo-secao">
+      <span class="subtitulo">ACOMPANHE SUAS COMPRAS</span>
+      <h2>Meus pedidos</h2>
+      <p>Consulte seus atendimentos e acompanhe a situação dos seus pedidos.</p>
+    </div>
+
+    @if (!clienteId) {
+      <div class="card-item">
+        <h3>Identifique sua conta</h3>
+        <p>Digite o CPF utilizado no seu cadastro para consultar seus pedidos.</p>
+
+        <label for="cpfPedidos">CPF</label>
+        <input
+          id="cpfPedidos"
+          name="cpfPedidos"
+          type="text"
+          placeholder="Digite seu CPF"
+          [(ngModel)]="cpfConsulta"
+        >
+
+        <button
+          class="botao"
+          (click)="localizarClientePorCpf()"
+          [disabled]="buscandoCliente"
+        >
+          {{ buscandoCliente ? 'Consultando...' : 'Consultar meus pedidos' }}
+        </button>
+
+        @if (mensagemCliente) {
+          <p>{{ mensagemCliente }}</p>
+        }
+      </div>
+    }
+
+    @if (clienteId) {
+      <div class="card-item">
+        <h3>Cliente identificado</h3>
+        <p>Código do cliente: {{ clienteId }}</p>
+
+        <button
+          class="botao"
+          (click)="carregarMeusPedidos()"
+          [disabled]="carregandoPedidos"
+        >
+          {{ carregandoPedidos ? 'Atualizando...' : 'Atualizar pedidos' }}
+        </button>
+      </div>
+    }
+
+    @if (erroPedidos) {
+      <p class="mensagem-erro">{{ erroPedidos }}</p>
+    }
+
+    @if (carregandoPedidos) {
+      <p>Carregando seus pedidos...</p>
+    }
+
+    @if (mensagemPedidos && !carregandoPedidos) {
+      <p>{{ mensagemPedidos }}</p>
+    }
+
+    @if (pedidosCliente.length > 0) {
+      <div class="lista-itens">
+        @for (pedido of pedidosCliente; track pedido.idAtendimento) {
+          <div class="card-item">
+            <h3>Pedido #{{ pedido.idAtendimento }}</h3>
+
+            <p>Cliente: {{ pedido.nomePessoa }}</p>
+            <p>Data: {{ pedido.dataAtendimento }}</p>
+
+            <p>
+              Situação:
+              <strong>
+                {{ nomeStatusPedido(pedido.statusAtendimento) }}
+              </strong>
+            </p>
+
+            <h4>Produtos e serviços</h4>
+
+            @for (item of pedido.itens; track $index) {
+              <div>
+                <p>Item: {{ item.item }}</p>
+                <p>Funcionário: {{ item.nomeFuncionario }}</p>
+                <p>Quantidade: {{ item.quantidade }}</p>
+
+                <p>
+                  Valor unitário:
+                  {{ item.valorUnitario | currency:'BRL' }}
+                </p>
+
+                <p>
+                  Subtotal:
+                  {{ item.valorUnitario * item.quantidade | currency:'BRL' }}
+                </p>
+              </div>
+            }
+
+            <div class="total">
+              <h3>
+                Total do pedido:
+                {{ totalPedido(pedido) | currency:'BRL' }}
+              </h3>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
   <!-- Sobre a loja -->
   <section
     id="sobre"
@@ -255,9 +399,7 @@
   >
     <div class="titulo-secao">
       <span class="subtitulo">CONHEÇA A ESSENZA</span>
-
       <h2>Sobre nós</h2>
-
       <h3>Beleza, cuidado e bem-estar em perfeita harmonia</h3>
 
       <p>
@@ -327,6 +469,10 @@
       <button class="botao" (click)="paginaAdmin = 'entradas'">
         Entradas de produtos
       </button>
+
+      <button class="botao" (click)="paginaAdmin = 'categorias'">
+        Categorias
+      </button>
     </div>
 
     @if (erroAdmin) {
@@ -358,15 +504,133 @@
       </div>
     }
 
-    <!-- Lista de clientes -->
+    <!-- CRUD de clientes -->
     @if (paginaAdmin === 'clientes') {
+      <div class="card-item">
+        <h3>
+          {{ clienteEditandoId ? 'Editar cliente' : 'Cadastrar cliente' }}
+        </h3>
+
+        <form (ngSubmit)="salvarClienteAdmin()">
+          <label for="nomeClienteAdmin">Nome completo</label>
+          <input
+            id="nomeClienteAdmin"
+            name="nomeClienteAdmin"
+            type="text"
+            [(ngModel)]="clienteAdminForm.nome"
+            required
+          >
+
+          <label for="cpfClienteAdmin">CPF</label>
+          <input
+            id="cpfClienteAdmin"
+            name="cpfClienteAdmin"
+            type="text"
+            [(ngModel)]="clienteAdminForm.cpf"
+            required
+          >
+
+          <label for="dataClienteAdmin">Data de nascimento</label>
+          <input
+            id="dataClienteAdmin"
+            name="dataClienteAdmin"
+            type="date"
+            [(ngModel)]="clienteAdminForm.dataNascimento"
+            required
+          >
+
+          <label for="sexoClienteAdmin">Sexo</label>
+          <select
+            id="sexoClienteAdmin"
+            name="sexoClienteAdmin"
+            [(ngModel)]="clienteAdminForm.sexo"
+            required
+          >
+            <option value="">Selecione</option>
+            <option value="F">Feminino</option>
+            <option value="M">Masculino</option>
+            <option value="O">Outro</option>
+          </select>
+
+          <label for="emailClienteAdmin">E-mail</label>
+          <input
+            id="emailClienteAdmin"
+            name="emailClienteAdmin"
+            type="email"
+            [(ngModel)]="clienteAdminForm.email"
+            required
+          >
+
+          <label for="telefoneClienteAdmin">Telefone</label>
+          <input
+            id="telefoneClienteAdmin"
+            name="telefoneClienteAdmin"
+            type="text"
+            [(ngModel)]="clienteAdminForm.telefone"
+            required
+          >
+
+          <label for="ativoClienteAdmin">Situação</label>
+          <select
+            id="ativoClienteAdmin"
+            name="ativoClienteAdmin"
+            [(ngModel)]="clienteAdminForm.ativoPessoa"
+          >
+            <option value="S">Ativo</option>
+            <option value="N">Inativo</option>
+          </select>
+
+          @if (erroClienteAdmin) {
+            <p class="mensagem-erro">{{ erroClienteAdmin }}</p>
+          }
+
+          @if (mensagemClienteAdmin) {
+            <p class="mensagem-sucesso">{{ mensagemClienteAdmin }}</p>
+          }
+
+          <button type="submit" class="botao">
+            {{ clienteEditandoId ? 'Salvar alterações' : 'Cadastrar cliente' }}
+          </button>
+
+          @if (clienteEditandoId) {
+            <button
+              type="button"
+              class="botao-cancelar"
+              (click)="cancelarEdicaoCliente()"
+            >
+              Cancelar edição
+            </button>
+          }
+        </form>
+      </div>
+
+      <h3>Clientes cadastrados</h3>
+
       <div class="lista-itens">
         @for (pessoa of pessoas; track pessoa.idpessoa) {
           <div class="card-item">
             <h3>{{ pessoa.nome }}</h3>
+            <p>Código: {{ pessoa.idpessoa }}</p>
             <p>CPF: {{ pessoa.cpf }}</p>
+            <p>Data de nascimento: {{ pessoa.dataNascimento }}</p>
+            <p>Sexo: {{ pessoa.sexo }}</p>
             <p>E-mail: {{ pessoa.email }}</p>
             <p>Telefone: {{ pessoa.telefone }}</p>
+            <p>Situação: {{ pessoa.ativoPessoa === 'S' ? 'Ativo' : 'Inativo' }}</p>
+
+            <button
+              class="botao"
+              (click)="editarCliente(pessoa)"
+            >
+              Editar
+            </button>
+
+            <button
+              class="botao-remover"
+              (click)="excluirCliente(pessoa.idpessoa)"
+            >
+              Excluir
+            </button>
           </div>
         } @empty {
           <p>Nenhum cliente encontrado.</p>
@@ -374,15 +638,191 @@
       </div>
     }
 
-    <!-- Lista de funcionários -->
+    <!-- CRUD de funcionários -->
     @if (paginaAdmin === 'funcionarios') {
+      <div class="card-item">
+        <h3>
+          {{ funcionarioEditandoId !== null ? 'Editar funcionário' : 'Cadastrar funcionário' }}
+        </h3>
+
+        <form (ngSubmit)="salvarFuncionario()">
+          <label for="nomeFuncionario">Nome completo</label>
+          <input
+            id="nomeFuncionario"
+            name="nomeFuncionario"
+            type="text"
+            [(ngModel)]="funcionarioForm.nome"
+            required
+          >
+
+          <label for="cpfFuncionario">CPF</label>
+          <input
+            id="cpfFuncionario"
+            name="cpfFuncionario"
+            type="text"
+            [(ngModel)]="funcionarioForm.cpf"
+            required
+          >
+
+          <label for="dataNascimentoFuncionario">Data de nascimento</label>
+          <input
+            id="dataNascimentoFuncionario"
+            name="dataNascimentoFuncionario"
+            type="date"
+            [(ngModel)]="funcionarioForm.dataNascimento"
+            required
+          >
+
+          <label for="sexoFuncionario">Sexo</label>
+          <select
+            id="sexoFuncionario"
+            name="sexoFuncionario"
+            [(ngModel)]="funcionarioForm.sexo"
+            required
+          >
+            <option value="">Selecione</option>
+            <option value="F">Feminino</option>
+            <option value="M">Masculino</option>
+            <option value="O">Outro</option>
+          </select>
+
+          <label for="emailFuncionario">E-mail</label>
+          <input
+            id="emailFuncionario"
+            name="emailFuncionario"
+            type="email"
+            [(ngModel)]="funcionarioForm.email"
+            required
+          >
+
+          <label for="telefoneFuncionario">Telefone</label>
+          <input
+            id="telefoneFuncionario"
+            name="telefoneFuncionario"
+            type="text"
+            [(ngModel)]="funcionarioForm.telefone"
+            required
+          >
+
+          <label for="situacaoFuncionario">Situação</label>
+          <select
+            id="situacaoFuncionario"
+            name="situacaoFuncionario"
+            [(ngModel)]="funcionarioForm.ativoPessoa"
+          >
+            <option value="S">Ativo</option>
+            <option value="N">Inativo</option>
+          </select>
+
+          <label for="cargoFuncionario">Cargo</label>
+          <input
+            id="cargoFuncionario"
+            name="cargoFuncionario"
+            type="text"
+            [(ngModel)]="funcionarioForm.cargo"
+            required
+          >
+
+          <label for="dataAdmissaoFuncionario">Data de admissão</label>
+          <input
+            id="dataAdmissaoFuncionario"
+            name="dataAdmissaoFuncionario"
+            type="date"
+            [(ngModel)]="funcionarioForm.dataAdmissao"
+            required
+          >
+
+          <h3>Endereço</h3>
+
+          <label for="cepFuncionario">CEP</label>
+          <input
+            id="cepFuncionario"
+            name="cepFuncionario"
+            type="text"
+            [(ngModel)]="funcionarioForm.cep"
+            required
+          >
+
+          <label for="numeroFuncionario">Número</label>
+          <input
+            id="numeroFuncionario"
+            name="numeroFuncionario"
+            type="text"
+            [(ngModel)]="funcionarioForm.numero"
+            required
+          >
+
+          <label for="complementoFuncionario">Complemento</label>
+          <input
+            id="complementoFuncionario"
+            name="complementoFuncionario"
+            type="text"
+            [(ngModel)]="funcionarioForm.complemento"
+          >
+
+          @if (erroFuncionario) {
+            <p class="mensagem-erro">{{ erroFuncionario }}</p>
+          }
+
+          @if (mensagemFuncionario) {
+            <p class="mensagem-sucesso">{{ mensagemFuncionario }}</p>
+          }
+
+          <button type="submit" class="botao">
+            {{ funcionarioEditandoId !== null ? 'Salvar alterações' : 'Cadastrar funcionário' }}
+          </button>
+
+          @if (funcionarioEditandoId !== null) {
+            <button
+              type="button"
+              class="botao-cancelar"
+              (click)="cancelarEdicaoFuncionario()"
+            >
+              Cancelar edição
+            </button>
+          }
+        </form>
+      </div>
+
+      <h3>Funcionários cadastrados</h3>
+
       <div class="lista-itens">
-        @for (funcionario of funcionarios; track funcionario.idpessoa) {
+        @for (funcionario of funcionarios; track funcionario.idPessoa ?? funcionario.idpessoa) {
           <div class="card-item">
-            <h3>
-              {{ funcionario.nome || funcionario.idpessoaNavigation?.nome }}
-            </h3>
+            <h3>{{ funcionario.nome || funcionario.idpessoaNavigation?.nome }}</h3>
+
+            <p>Código: {{ funcionario.idPessoa ?? funcionario.idpessoa }}</p>
+            <p>CPF: {{ funcionario.cpf }}</p>
+            <p>Data de nascimento: {{ funcionario.dataNascimento }}</p>
+            <p>Sexo: {{ funcionario.sexo }}</p>
+            <p>E-mail: {{ funcionario.email }}</p>
+            <p>Telefone: {{ funcionario.telefone }}</p>
             <p>Cargo: {{ funcionario.cargo }}</p>
+            <p>Data de admissão: {{ funcionario.dataAdmissao }}</p>
+            <p>
+              Situação:
+              {{ funcionario.ativoPessoa === 'S' ? 'Ativo' : 'Inativo' }}
+            </p>
+
+            @for (endereco of funcionario.enderecos; track endereco.idendereco) {
+              <p>CEP: {{ endereco.cep }}</p>
+              <p>Número: {{ endereco.numero }}</p>
+              <p>Complemento: {{ endereco.complemento }}</p>
+            }
+
+            <button
+              class="botao"
+              (click)="editarFuncionario(funcionario)"
+            >
+              Editar
+            </button>
+
+            <button
+              class="botao-remover"
+              (click)="excluirFuncionario(funcionario.idPessoa ?? funcionario.idpessoa)"
+            >
+              Excluir
+            </button>
           </div>
         } @empty {
           <p>Nenhum funcionário encontrado.</p>
@@ -390,15 +830,219 @@
       </div>
     }
 
-    <!-- Lista de atendimentos -->
+    <!-- CRUD de atendimentos -->
     @if (paginaAdmin === 'atendimentos') {
+      <div class="card-item">
+        <h3>
+          {{ atendimentoEditandoId !== null ? 'Editar atendimento' : 'Cadastrar atendimento' }}
+        </h3>
+
+        <form (ngSubmit)="salvarAtendimento()">
+
+          <label for="clienteAtendimento">Cliente</label>
+          <select
+            id="clienteAtendimento"
+            name="clienteAtendimento"
+            [(ngModel)]="atendimentoForm.idPessoa"
+            required
+          >
+            <option [ngValue]="null">Selecione o cliente</option>
+            @for (pessoa of pessoas; track pessoa.idpessoa) {
+              <option [ngValue]="pessoa.idpessoa">
+                {{ pessoa.nome }} - Código {{ pessoa.idpessoa }}
+              </option>
+            }
+          </select>
+
+          <label for="dataAtendimento">Data do atendimento</label>
+          <input
+            id="dataAtendimento"
+            name="dataAtendimento"
+            type="date"
+            [(ngModel)]="atendimentoForm.dataAtendimento"
+            required
+          >
+
+          <label for="statusAtendimento">Status</label>
+          <select
+            id="statusAtendimento"
+            name="statusAtendimento"
+            [(ngModel)]="atendimentoForm.statusAtendimento"
+            required
+          >
+            <option value="P">Pendente</option>
+            <option value="C">Concluído</option>
+            <option value="X">Cancelado</option>
+          </select>
+
+          <h3>Produtos e serviços do atendimento</h3>
+
+          @for (linha of atendimentoForm.itens; track $index; let i = $index) {
+            <div class="card-item">
+              <h3>Item {{ i + 1 }}</h3>
+
+              <label [for]="'itemAtendimento' + i">
+                Produto ou serviço
+              </label>
+
+              <select
+                [id]="'itemAtendimento' + i"
+                [name]="'itemAtendimento' + i"
+                [(ngModel)]="linha.idItem"
+                (ngModelChange)="selecionarItemAtendimento(linha)"
+                required
+              >
+                <option [ngValue]="null">Selecione um item</option>
+                @for (item of itens; track item.iditem) {
+                  <option [ngValue]="item.iditem">
+                    {{ item.item1 }} - {{ item.preco | currency:'BRL' }}
+                  </option>
+                }
+              </select>
+
+              <label [for]="'funcionarioAtendimento' + i">
+                Funcionário responsável
+              </label>
+
+              <select
+                [id]="'funcionarioAtendimento' + i"
+                [name]="'funcionarioAtendimento' + i"
+                [(ngModel)]="linha.idFuncionario"
+                required
+              >
+                <option [ngValue]="null">Selecione o funcionário</option>
+                @for (funcionario of funcionarios; track funcionario.idPessoa ?? funcionario.idpessoa) {
+                  <option [ngValue]="funcionario.idPessoa ?? funcionario.idpessoa">
+                    {{ funcionario.nome || funcionario.idpessoaNavigation?.nome }}
+                    - {{ funcionario.cargo }}
+                  </option>
+                }
+              </select>
+
+              <label [for]="'quantidadeAtendimento' + i">
+                Quantidade
+              </label>
+
+              <input
+                [id]="'quantidadeAtendimento' + i"
+                [name]="'quantidadeAtendimento' + i"
+                type="number"
+                min="1"
+                [(ngModel)]="linha.quantidade"
+                required
+              >
+
+              <label [for]="'valorAtendimento' + i">
+                Valor unitário
+              </label>
+
+              <input
+                [id]="'valorAtendimento' + i"
+                [name]="'valorAtendimento' + i"
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="linha.valorUnitario"
+                required
+              >
+
+              <button
+                type="button"
+                class="botao-remover"
+                (click)="removerItemAtendimento(i)"
+                [disabled]="atendimentoForm.itens.length === 1"
+              >
+                Remover item
+              </button>
+            </div>
+          }
+
+          <button
+            type="button"
+            class="botao"
+            (click)="adicionarItemAtendimento()"
+          >
+            Adicionar produto ou serviço
+          </button>
+
+          @if (erroAtendimento) {
+            <p class="mensagem-erro">{{ erroAtendimento }}</p>
+          }
+
+          @if (mensagemAtendimento) {
+            <p class="mensagem-sucesso">{{ mensagemAtendimento }}</p>
+          }
+
+          <button type="submit" class="botao">
+            {{ atendimentoEditandoId !== null ? 'Salvar alterações' : 'Cadastrar atendimento' }}
+          </button>
+
+          @if (atendimentoEditandoId !== null) {
+            <button
+              type="button"
+              class="botao-cancelar"
+              (click)="cancelarEdicaoAtendimento()"
+            >
+              Cancelar edição
+            </button>
+          }
+        </form>
+      </div>
+
+      <h3>Atendimentos cadastrados</h3>
+
       <div class="lista-itens">
-        @for (atendimento of atendimentos; track atendimento.idatendimento) {
+        @for (atendimento of atendimentos; track atendimento.idAtendimento) {
           <div class="card-item">
-            <h3>Atendimento #{{ atendimento.idatendimento }}</h3>
-            <p>Cliente: {{ atendimento.idpessoa }}</p>
+            <h3>Atendimento #{{ atendimento.idAtendimento }}</h3>
+            <p>Cliente: {{ atendimento.nomePessoa }}</p>
+            <p>Código do cliente: {{ atendimento.idPessoa }}</p>
             <p>Data: {{ atendimento.dataAtendimento }}</p>
-            <p>Status: {{ atendimento.statusAtendimento }}</p>
+            <p>
+              Status:
+              @if (atendimento.statusAtendimento === 'P') {
+                Pendente
+              } @else if (atendimento.statusAtendimento === 'C') {
+                Concluído
+              } @else if (atendimento.statusAtendimento === 'X') {
+                Cancelado
+              } @else {
+                {{ atendimento.statusAtendimento || 'Não informado' }}
+              }
+            </p>
+
+            <h4>Itens do atendimento</h4>
+
+            @for (item of atendimento.itens; track $index) {
+              <div>
+                <p>Produto/serviço: {{ item.item }}</p>
+                <p>Funcionário: {{ item.nomeFuncionario }}</p>
+                <p>Cargo: {{ item.cargo }}</p>
+                <p>Quantidade: {{ item.quantidade }}</p>
+                <p>
+                  Valor unitário:
+                  {{ item.valorUnitario | currency:'BRL' }}
+                </p>
+                <p>
+                  Subtotal:
+                  {{ item.valorUnitario * item.quantidade | currency:'BRL' }}
+                </p>
+              </div>
+            }
+
+            <button
+              class="botao"
+              (click)="editarAtendimento(atendimento)"
+            >
+              Editar
+            </button>
+
+            <button
+              class="botao-remover"
+              (click)="excluirAtendimento(atendimento.idAtendimento)"
+            >
+              Excluir
+            </button>
           </div>
         } @empty {
           <p>Nenhum atendimento encontrado.</p>
@@ -411,8 +1055,11 @@
       <div class="lista-itens">
         @for (estoque of estoques; track estoque.iditem) {
           <div class="card-item">
-            <h3>Item #{{ estoque.iditem }}</h3>
-            <p>Quantidade disponível: {{ estoque.quantidade }}</p>
+            <h3>{{ nomeItem(estoque.iditem) }}</h3>
+            <p>
+              Quantidade disponível:
+              {{ estoque.quantidadeEstoque }}
+            </p>
           </div>
         } @empty {
           <p>Nenhum registro de estoque encontrado.</p>
@@ -420,18 +1067,208 @@
       </div>
     }
 
-    <!-- Consulta de entradas de produtos -->
+    <!-- CRUD de entradas de produtos -->
     @if (paginaAdmin === 'entradas') {
+      <div class="card-item">
+        <h3>
+          {{ entradaEditandoId !== null ? 'Editar entrada de produto' : 'Cadastrar entrada de produto' }}
+        </h3>
+
+        <form (ngSubmit)="salvarEntrada()">
+
+          <label for="itemEntrada">Produto</label>
+          <select
+            id="itemEntrada"
+            name="itemEntrada"
+            [(ngModel)]="entradaForm.idItem"
+            required
+          >
+            <option [ngValue]="null">Selecione o produto</option>
+
+            @for (item of itens; track item.iditem) {
+              @if (item.tipoItem === 'P') {
+                <option [ngValue]="item.iditem">
+                  {{ item.item1 }} - Código {{ item.iditem }}
+                </option>
+              }
+            }
+          </select>
+
+          <label for="dataEntradaProduto">Data da entrada</label>
+          <input
+            id="dataEntradaProduto"
+            name="dataEntradaProduto"
+            type="date"
+            [(ngModel)]="entradaForm.dataEntradaProduto"
+            required
+          >
+
+          <label for="quantidadeEntrada">Quantidade recebida</label>
+          <input
+            id="quantidadeEntrada"
+            name="quantidadeEntrada"
+            type="number"
+            min="1"
+            [(ngModel)]="entradaForm.quantidadeEntrada"
+            required
+          >
+
+          <label for="unidadeEntrada">Unidade</label>
+          <select
+            id="unidadeEntrada"
+            name="unidadeEntrada"
+            [(ngModel)]="entradaForm.unidade"
+            required
+          >
+            <option value="UN">Unidade (UN)</option>
+            <option value="CX">Caixa (CX)</option>
+            <option value="KG">Quilograma (KG)</option>
+            <option value="L">Litro (L)</option>
+          </select>
+
+          <label for="valorEntrada">Valor unitário</label>
+          <input
+            id="valorEntrada"
+            name="valorEntrada"
+            type="number"
+            min="0"
+            step="0.01"
+            [(ngModel)]="entradaForm.valorUnitarioEntrada"
+            required
+          >
+
+          @if (erroEntrada) {
+            <p class="mensagem-erro">{{ erroEntrada }}</p>
+          }
+
+          @if (mensagemEntrada) {
+            <p class="mensagem-sucesso">{{ mensagemEntrada }}</p>
+          }
+
+          <button type="submit" class="botao">
+            {{ entradaEditandoId !== null ? 'Salvar alterações' : 'Cadastrar entrada' }}
+          </button>
+
+          @if (entradaEditandoId !== null) {
+            <button
+              type="button"
+              class="botao-cancelar"
+              (click)="cancelarEdicaoEntrada()"
+            >
+              Cancelar edição
+            </button>
+          }
+        </form>
+      </div>
+
+      <h3>Entradas de produtos cadastradas</h3>
+
       <div class="lista-itens">
-        @for (entrada of entradas; track entrada.identradaProduto) {
+        @for (entrada of entradas; track entrada.idEntradaProduto) {
           <div class="card-item">
-            <h3>Entrada #{{ entrada.identradaProduto }}</h3>
-            <p>Produto: {{ entrada.iditem }}</p>
-            <p>Quantidade: {{ entrada.quantidade }}</p>
-            <p>Data: {{ entrada.dataEntrada }}</p>
+            <h3>Entrada #{{ entrada.idEntradaProduto }}</h3>
+
+            <p>Produto: {{ nomeItem(entrada.idItem) }}</p>
+            <p>Código do produto: {{ entrada.idItem }}</p>
+            <p>Quantidade: {{ entrada.quantidadeEntrada }} {{ entrada.unidade }}</p>
+            <p>Data: {{ entrada.dataEntradaProduto }}</p>
+
+            <p>
+              Valor unitário:
+              {{ entrada.valorUnitarioEntrada | currency:'BRL' }}
+            </p>
+
+            <p>
+              Total da entrada:
+              {{ entrada.quantidadeEntrada * entrada.valorUnitarioEntrada | currency:'BRL' }}
+            </p>
+
+            <button
+              class="botao"
+              (click)="editarEntrada(entrada)"
+            >
+              Editar
+            </button>
+
+            <button
+              class="botao-remover"
+              (click)="excluirEntrada(entrada.idEntradaProduto)"
+            >
+              Excluir
+            </button>
           </div>
         } @empty {
           <p>Nenhuma entrada encontrada.</p>
+        }
+      </div>
+    }
+
+    <!-- Cadastro, edição e exclusão de categorias -->
+    @if (paginaAdmin === 'categorias') {
+      <div class="card-item">
+        <h3>
+          {{ categoriaEditandoId ? 'Editar categoria' : 'Cadastrar categoria' }}
+        </h3>
+
+        <form (ngSubmit)="salvarCategoria()">
+          <label for="categoria">Nome da categoria</label>
+          <input
+            id="categoria"
+            name="categoria"
+            type="text"
+            [(ngModel)]="categoriaForm.categoria"
+            placeholder="Digite o nome da categoria"
+            required
+          >
+
+          @if (erroCategoria) {
+            <p class="mensagem-erro">{{ erroCategoria }}</p>
+          }
+
+          @if (mensagemCategoria) {
+            <p class="mensagem-sucesso">{{ mensagemCategoria }}</p>
+          }
+
+          <button type="submit" class="botao">
+            {{ categoriaEditandoId ? 'Salvar alterações' : 'Cadastrar categoria' }}
+          </button>
+
+          @if (categoriaEditandoId) {
+            <button
+              type="button"
+              class="botao-cancelar"
+              (click)="cancelarEdicaoCategoria()"
+            >
+              Cancelar edição
+            </button>
+          }
+        </form>
+      </div>
+
+      <h3>Categorias cadastradas</h3>
+
+      <div class="lista-itens">
+        @for (categoria of categorias; track categoria.idcategoria) {
+          <div class="card-item">
+            <h3>{{ categoria.categoria }}</h3>
+            <p>Código: {{ categoria.idcategoria }}</p>
+
+            <button
+              class="botao"
+              (click)="editarCategoria(categoria)"
+            >
+              Editar
+            </button>
+
+            <button
+              class="botao-remover"
+              (click)="excluirCategoria(categoria.idcategoria)"
+            >
+              Excluir
+            </button>
+          </div>
+        } @empty {
+          <p>Nenhuma categoria cadastrada.</p>
         }
       </div>
     }
