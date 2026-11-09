@@ -1,4 +1,3 @@
-
 import { Component, OnInit, signal, ChangeDetectorRef } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -29,7 +28,6 @@ export class App implements OnInit {
   buscandoCliente = false;
   mensagemCliente = '';
 
-  // Dados utilizados na consulta de pedidos do cliente.
   pedidosCliente: any[] = [];
   carregandoPedidos = false;
   erroPedidos = '';
@@ -67,6 +65,41 @@ export class App implements OnInit {
   mensagemCategoria = '';
   erroCategoria = '';
 
+  // Cadastro de produtos e serviços.
+  itemForm: any = {
+    idcategoria: null,
+    item: '',
+    descricaoItem: '',
+    preco: 0,
+    tipoItem: 'P',
+    ativoProdutoServico: 'S'
+  };
+
+  mensagemItem = '';
+  erroItem = '';
+  salvandoItem = false;
+
+  // Cadastro e gerenciamento exclusivo de serviços.
+  servicoForm: any = {
+    idcategoria: null,
+    item: '',
+    descricaoItem: '',
+    preco: 0,
+    ativoProdutoServico: 'S'
+  };
+
+  servicoEditandoId: number | null = null;
+  mensagemServico = '';
+  erroServico = '';
+  salvandoServico = false;
+
+  // Lista somente os serviços cadastrados.
+  get servicos(): any[] {
+    return this.itens.filter(item =>
+      item.tipoItem?.toString().trim().toUpperCase() === 'S'
+    );
+  }
+
   clienteAdminForm = {
     nome: '',
     cpf: '',
@@ -100,7 +133,6 @@ export class App implements OnInit {
   mensagemFuncionario = '';
   erroFuncionario = '';
 
-  // Dados utilizados no cadastro e na edição de atendimentos.
   atendimentoForm: any = {
     idPessoa: null,
     dataAtendimento: new Date().toISOString().split('T')[0],
@@ -112,7 +144,6 @@ export class App implements OnInit {
   mensagemAtendimento = '';
   erroAtendimento = '';
 
-  // Dados utilizados no cadastro e na edição de entradas.
   entradaForm: any = {
     idItem: null,
     dataEntradaProduto: new Date().toISOString().split('T')[0],
@@ -131,19 +162,7 @@ export class App implements OnInit {
   ) {}
 
   ngOnInit(): void {
-
-    this.api.listarItens().subscribe({
-      next: dados => {
-        console.log('Primeiro item recebido:', dados[0]);
-        console.log('Quantidade recebida:', dados.length);
-
-        this.itens = dados;
-        this.busca = '';
-        this.categoriaSelecionada = '';
-        this.tipoSelecionado = '';
-      },
-      error: erro => console.log('Erro ao carregar itens:', erro)
-    });
+    this.carregarItens();
 
     this.api.listarCategorias().subscribe({
       next: dados => {
@@ -164,7 +183,6 @@ export class App implements OnInit {
     }
   }
 
-  // Abre a página de consulta dos pedidos do cliente.
   abrirMeusPedidos(): void {
     this.paginaAtual = 'pedidos';
     this.erroPedidos = '';
@@ -176,7 +194,6 @@ export class App implements OnInit {
     }
   }
 
-  // Busca os atendimentos cadastrados para o cliente identificado.
   carregarMeusPedidos(): void {
     if (!this.clienteId) {
       this.erroPedidos = 'Informe seu CPF para consultar seus pedidos.';
@@ -215,7 +232,6 @@ export class App implements OnInit {
     });
   }
 
-  // Calcula o valor total de cada pedido.
   totalPedido(pedido: any): number {
     return (pedido.itens ?? []).reduce(
       (total: number, item: any) =>
@@ -224,7 +240,6 @@ export class App implements OnInit {
     );
   }
 
-  // Apresenta o status por extenso.
   nomeStatusPedido(status: string): string {
     switch (status) {
       case 'P':
@@ -244,23 +259,47 @@ export class App implements OnInit {
       const descricao = (item.descricaoItem || '').toString().toLowerCase();
       const buscaAtual = this.busca.toLowerCase().trim();
 
+      const ativo = item.ativoProdutoServico;
+      const itemAtivo =
+        ativo === null ||
+        ativo === undefined ||
+        ativo === '' ||
+        ativo === true ||
+        ativo === 1 ||
+        ativo === '1' ||
+        ativo.toString().trim().toUpperCase() === 'S' ||
+        ativo.toString().trim().toUpperCase() === 'TRUE';
+
       return (
-        (nome.includes(buscaAtual) ||
-          descricao.includes(buscaAtual)) &&
+        (nome.includes(buscaAtual) || descricao.includes(buscaAtual)) &&
         (this.categoriaSelecionada === '' ||
           Number(item.idcategoria) === Number(this.categoriaSelecionada)) &&
         (this.tipoSelecionado === '' ||
           item.tipoItem?.toString().trim().toUpperCase() === this.tipoSelecionado) &&
-        (
-          !item.ativoProdutoServico ||
-          item.ativoProdutoServico.toString().trim().toUpperCase() === 'S'
-        )
+        itemAtivo
       );
     });
   }
 
   get itensExibidos() {
     return this.itensFiltrados;
+  }
+
+  // Retorna os produtos e serviços pertencentes à categoria.
+  itensDaCategoria(idcategoria: number): any[] {
+    return this.itensFiltrados.filter(item =>
+      Number(item.idcategoria) === Number(idcategoria)
+    );
+  }
+
+  // Retorna o nome da categoria de cada produto ou serviço.
+  nomeCategoria(idcategoria: number): string {
+    const categoria = this.categorias.find(
+      categoria =>
+        Number(categoria.idcategoria) === Number(idcategoria)
+    );
+
+    return categoria ? categoria.categoria : 'Categoria não informada';
   }
 
   adicionarAoCarrinho(item: any): void {
@@ -343,7 +382,6 @@ export class App implements OnInit {
           this.mensagemCliente = 'Cliente identificado com sucesso!';
           this.erroCadastro = '';
 
-          // Se a consulta foi aberta em Meus pedidos, carrega os pedidos.
           if (this.paginaAtual === 'pedidos') {
             this.carregarMeusPedidos();
           }
@@ -444,6 +482,9 @@ export class App implements OnInit {
   }
 
   confirmarCompra(): void {
+    this.erro = '';
+    this.mensagemCliente = '';
+
     if (this.carrinho.length === 0) {
       this.erro = 'Adicione pelo menos um item ao carrinho.';
       return;
@@ -456,10 +497,88 @@ export class App implements OnInit {
       return;
     }
 
-    this.erro = 'Para registrar o atendimento, selecione o funcionário responsável por cada item no cadastro de atendimento da administração.';
-    this.abrirAdministracao();
-    this.paginaAdmin = 'atendimentos';
-    this.iniciarNovoAtendimento();
+    this.api.listarFuncionarios().pipe(
+      timeout(10000)
+    ).subscribe({
+      next: funcionarios => {
+        console.log('Funcionários disponíveis:', funcionarios);
+
+        const funcionario = funcionarios.find((f: any) =>
+          (f.ativoPessoa === 'S' || f.ativoPessoa === true) &&
+          f.cargo?.trim()
+        );
+
+        if (!funcionario) {
+          this.erro = 'Não existe funcionário ativo cadastrado para atender esta compra.';
+          this.cdr.detectChanges();
+          return;
+        }
+
+        const idFuncionario = Number(
+          funcionario.idPessoa ?? funcionario.idpessoa
+        );
+
+        if (!idFuncionario) {
+          this.erro = 'Não foi possível identificar o funcionário responsável.';
+          this.cdr.detectChanges();
+          return;
+        }
+
+        const hoje = new Date();
+
+        const dados = {
+          idPessoa: Number(this.clienteId),
+          dataAtendimento:
+            hoje.getFullYear() + '-' +
+            String(hoje.getMonth() + 1).padStart(2, '0') + '-' +
+            String(hoje.getDate()).padStart(2, '0'),
+          statusAtendimento: 'P',
+          itens: this.carrinho.map(linha => ({
+            idItem: Number(linha.item.iditem),
+            idFuncionario: idFuncionario,
+            quantidade: Number(linha.quantidade),
+            valorUnitario: Number(linha.item.preco)
+          }))
+        };
+
+        console.log('Compra enviada para a API:', dados);
+
+        this.api.cadastrarAtendimento(dados).pipe(
+          timeout(15000)
+        ).subscribe({
+          next: resposta => {
+            console.log('Compra salva como atendimento:', resposta);
+
+            this.carrinho = [];
+
+            this.mensagemCliente =
+              'Compra finalizada com sucesso! Seu pedido foi registrado.';
+
+            this.erro = '';
+            this.mostrarCadastro = false;
+
+            this.carregarAtendimentos();
+
+            this.cdr.detectChanges();
+          },
+          error: erro => {
+            console.error('Erro ao salvar compra:', erro);
+            console.error('Detalhes da API:', erro.error);
+
+            this.erro = erro.error?.title ||
+              'Não foi possível finalizar a compra. Verifique os dados e tente novamente.';
+
+            this.cdr.detectChanges();
+          }
+        });
+      },
+      error: erro => {
+        console.error('Erro ao buscar funcionários:', erro);
+
+        this.erro = 'Não foi possível localizar um funcionário para registrar a compra.';
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   carregarAdministracao(): void {
@@ -601,6 +720,240 @@ export class App implements OnInit {
     };
   }
 
+  // Carrega os produtos e serviços cadastrados.
+  carregarItens(): void {
+    this.api.listarItens().subscribe({
+      next: dados => {
+        console.log('Itens recebidos:', dados);
+        this.itens = dados;
+        this.cdr.detectChanges();
+      },
+      error: erro => {
+        console.error('Erro ao carregar produtos e serviços:', erro);
+        this.erroItem = 'Erro ao atualizar o catálogo.';
+      }
+    });
+  }
+
+  // Cadastra um produto ou serviço com seu preço.
+  salvarItem(): void {
+    this.mensagemItem = '';
+    this.erroItem = '';
+
+    if (
+      !this.itemForm.idcategoria ||
+      !this.itemForm.item.trim() ||
+      !this.itemForm.descricaoItem.trim() ||
+      this.itemForm.preco === null ||
+      this.itemForm.preco === '' ||
+      Number(this.itemForm.preco) <= 0
+    ) {
+      this.erroItem = 'Preencha todos os campos corretamente.';
+      return;
+    }
+
+    const preco = Number(this.itemForm.preco);
+
+    this.salvandoItem = true;
+
+    if (this.itemForm.tipoItem === 'P') {
+      const dadosProduto = {
+        idcategoria: Number(this.itemForm.idcategoria),
+        item: this.itemForm.item.trim(),
+        descricaoItem: this.itemForm.descricaoItem.trim(),
+        preco: preco,
+        tipoItem: 'P',
+        ativoProdutoServico: this.itemForm.ativoProdutoServico,
+        codigoPreco: 1,
+        precoVenda: preco,
+        unidade: 'UN'
+      };
+
+      this.api.cadastrarProduto(dadosProduto).subscribe({
+        next: resposta => {
+          console.log('Produto cadastrado:', resposta);
+          this.finalizarCadastroItem('Produto cadastrado com sucesso!');
+        },
+        error: erro => {
+          console.error('Erro ao cadastrar produto:', erro);
+          console.error('Detalhes da API:', erro.error);
+          this.erroItem =
+            'Erro ao cadastrar produto. Confira os dados e se o código de preço 1 existe no banco.';
+          this.salvandoItem = false;
+        }
+      });
+    } else {
+      const dadosServico = {
+        idcategoria: Number(this.itemForm.idcategoria),
+        item1: this.itemForm.item.trim(),
+        descricaoItem: this.itemForm.descricaoItem.trim(),
+        preco: preco,
+        tipoItem: 'S',
+        ativoProdutoServico: this.itemForm.ativoProdutoServico
+      };
+
+      this.api.cadastrarItem(dadosServico).subscribe({
+        next: resposta => {
+          console.log('Serviço cadastrado:', resposta);
+          this.finalizarCadastroItem('Serviço cadastrado com sucesso!');
+        },
+        error: erro => {
+          console.error('Erro ao cadastrar serviço:', erro);
+          console.error('Detalhes da API:', erro.error);
+          this.erroItem = 'Erro ao cadastrar serviço. Verifique os dados.';
+          this.salvandoItem = false;
+        }
+      });
+    }
+  }
+
+  finalizarCadastroItem(mensagem: string): void {
+    this.mensagemItem = mensagem;
+
+    this.itemForm = {
+      idcategoria: null,
+      item: '',
+      descricaoItem: '',
+      preco: 0,
+      tipoItem: 'P',
+      ativoProdutoServico: 'S'
+    };
+
+    this.salvandoItem = false;
+    this.carregarItens();
+  }
+
+  // Cadastra ou atualiza um serviço.
+  salvarServico(): void {
+    this.mensagemServico = '';
+    this.erroServico = '';
+
+    if (
+      !this.servicoForm.idcategoria ||
+      !this.servicoForm.item.trim() ||
+      !this.servicoForm.descricaoItem.trim() ||
+      this.servicoForm.preco === null ||
+      this.servicoForm.preco === '' ||
+      Number(this.servicoForm.preco) <= 0
+    ) {
+      this.erroServico = 'Preencha todos os campos corretamente.';
+      return;
+    }
+
+    const dados = {
+      idcategoria: Number(this.servicoForm.idcategoria),
+      item1: this.servicoForm.item.trim(),
+      descricaoItem: this.servicoForm.descricaoItem.trim(),
+      preco: Number(this.servicoForm.preco),
+      tipoItem: 'S',
+      ativoProdutoServico: this.servicoForm.ativoProdutoServico
+    };
+
+    this.salvandoServico = true;
+
+    if (this.servicoEditandoId !== null) {
+      this.api.atualizarItem(this.servicoEditandoId, {
+        iditem: this.servicoEditandoId,
+        ...dados
+      }).subscribe({
+        next: () => {
+          this.mensagemServico = 'Serviço atualizado com sucesso!';
+          this.cancelarEdicaoServico();
+          this.carregarItens();
+          this.salvandoServico = false;
+        },
+        error: erro => {
+          console.error('Erro ao atualizar serviço:', erro);
+          console.error('Detalhes da API:', erro.error);
+          this.erroServico = 'Erro ao atualizar serviço.';
+          this.salvandoServico = false;
+        }
+      });
+    } else {
+      this.api.cadastrarItem(dados).subscribe({
+        next: () => {
+          this.mensagemServico = 'Serviço cadastrado com sucesso!';
+          this.cancelarEdicaoServico();
+          this.carregarItens();
+          this.salvandoServico = false;
+        },
+        error: erro => {
+          console.error('Erro ao cadastrar serviço:', erro);
+          console.error('Detalhes da API:', erro.error);
+          this.erroServico = 'Erro ao cadastrar serviço.';
+          this.salvandoServico = false;
+        }
+      });
+    }
+  }
+
+  // Busca os dados do serviço para edição.
+  editarServico(servico: any): void {
+    this.mensagemServico = '';
+    this.erroServico = '';
+
+    this.api.buscarItem(servico.iditem).subscribe({
+      next: dados => {
+        if (dados.tipoItem?.toString().trim().toUpperCase() !== 'S') {
+          this.erroServico = 'O item selecionado não é um serviço.';
+          return;
+        }
+
+        this.servicoEditandoId = Number(dados.iditem);
+
+        this.servicoForm = {
+          idcategoria: Number(dados.idcategoria),
+          item: dados.item1 ?? '',
+          descricaoItem: dados.descricaoItem ?? '',
+          preco: Number(dados.preco),
+          ativoProdutoServico: dados.ativoProdutoServico ?? 'S'
+        };
+
+        this.paginaAdmin = 'servicos';
+      },
+      error: erro => {
+        console.error('Erro ao buscar serviço:', erro);
+        this.erroServico = 'Erro ao buscar serviço para edição.';
+      }
+    });
+  }
+
+  // Exclui um serviço.
+  excluirServico(id: number): void {
+    this.mensagemServico = '';
+    this.erroServico = '';
+
+    if (!confirm('Deseja realmente excluir este serviço?')) {
+      return;
+    }
+
+    this.api.excluirItem(id).subscribe({
+      next: () => {
+        this.mensagemServico = 'Serviço excluído com sucesso!';
+        this.carregarItens();
+      },
+      error: erro => {
+        console.error('Erro ao excluir serviço:', erro);
+        console.error('Detalhes da API:', erro.error);
+        this.erroServico =
+          'Não foi possível excluir o serviço. Verifique se ele está vinculado a algum atendimento.';
+      }
+    });
+  }
+
+  // Limpa o formulário de serviço.
+  cancelarEdicaoServico(): void {
+    this.servicoEditandoId = null;
+
+    this.servicoForm = {
+      idcategoria: null,
+      item: '',
+      descricaoItem: '',
+      preco: 0,
+      ativoProdutoServico: 'S'
+    };
+  }
+
   salvarClienteAdmin(): void {
     this.mensagemClienteAdmin = '';
     this.erroClienteAdmin = '';
@@ -677,7 +1030,7 @@ export class App implements OnInit {
       },
       error: erro => {
         console.error('Erro ao buscar cliente:', erro);
-        this.erroClienteAdmin = 'Erro ao buscar cliente.';
+        this.erroClienteAdmin = 'Erro ao buscar cliente para edição.';
       }
     });
   }
@@ -1093,7 +1446,6 @@ export class App implements OnInit {
     };
   }
 
-  // Existe apenas uma implementação deste método.
   carregarAtendimentos(): void {
     this.api.listarAtendimentos().subscribe({
       next: dados => this.atendimentos = dados,
@@ -1241,6 +1593,8 @@ export class App implements OnInit {
     this.paginaAdmin = 'inicio';
     console.log('Painel administrativo aberto!');
     this.carregarAdministracao();
+    this.carregarCategorias();
+    this.carregarItens();
   }
 
   nomeItem(id: number): string {
